@@ -343,6 +343,7 @@ subscription. Unset it if you meant to use your subscription.
 Step-by-step setups for specific applications:
 
 - [TradingAgents](examples/tradingagents/README.md): multi-agent LLM trading research framework
+- [Vibe-Trading](examples/vibe-trading/README.md): natural-language finance research agent with backtesting
 
 ## Tests
 
