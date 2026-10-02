@@ -185,6 +185,9 @@ cli-llm-bridge
 
 # uv project environment
 uv run cli-llm-bridge
+
+# not installed: run the file from the repository folder
+python cli_llm_bridge.py
 ```
 
 The server prints both base URLs, by default:
@@ -334,6 +337,12 @@ Claude Code uses the `ANTHROPIC_API_KEY` environment variable when it is set, an
 passes its environment to `claude`. Start the bridge with a real API key in that variable and
 all requests are billed to the key under Anthropic's Commercial Terms instead of using your
 subscription. Unset it if you meant to use your subscription.
+
+## Examples
+
+Step-by-step setups for specific applications:
+
+- [TradingAgents](examples/tradingagents/README.md): multi-agent LLM trading research framework
 
 ## Tests
 
