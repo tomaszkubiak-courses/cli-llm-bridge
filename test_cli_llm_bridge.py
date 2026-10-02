@@ -94,6 +94,16 @@ class CompleteTest(unittest.TestCase):
         complete(CONFIG, {"messages": messages, "tools": [WEATHER], "tool_choice": "required"}, run)
         self.assertEqual(calls[-1]["schema"]["properties"]["tool_calls"]["minItems"], 1)
 
+    def test_large_tool_sets_get_a_compact_schema(self):
+        big = {"type": "object", "properties": {f"p{i}": {"type": "string", "description": "x" * 200} for i in range(10)}}
+        tools = [{"type": "function", "function": {"name": f"tool_{i}", "parameters": big}} for i in range(20)]
+        run, calls = fake_run({"structured_output": {"content": "", "tool_calls": []}})
+        complete(CONFIG, {"messages": [{"role": "user", "content": "Hi"}], "tools": tools}, run)
+        items = calls[0]["schema"]["properties"]["tool_calls"]["items"]
+        self.assertEqual(items["properties"]["name"]["enum"], [f"tool_{i}" for i in range(20)])
+        self.assertLess(len(json.dumps(calls[0]["schema"])), 2000)
+        self.assertIn('"p9"', calls[0]["system"])  # parameters still reach the model
+
     def test_json_schema_response_format(self):
         schema = {"type": "object", "properties": {"rating": {"type": "integer"}}}
         run, calls = fake_run({"structured_output": {"rating": 4}})

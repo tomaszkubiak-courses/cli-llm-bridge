@@ -27,6 +27,9 @@ __version__ = "0.1.0"
 MODELS = ["sonnet", "opus", "haiku", "fable"]
 EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 DEFAULT_SYSTEM = "You are a helpful assistant."
+# Above this size the tool-call schema is sent in compact form. Windows caps a whole
+# command line at 32,767 characters, and Linux caps a single argument at 128 KiB.
+MAX_SCHEMA_CHARS = 16000
 TRANSCRIPT_HEADER = (
     "Below is the conversation so far. Write only the next assistant reply, "
     "without any [role] prefix."
@@ -110,7 +113,11 @@ def select_tools(tools, tool_choice):
 
 
 def tools_schema(tools, required):
-    """JSON schema that forces the reply into {content, tool_calls} with valid tool arguments."""
+    """JSON schema that forces the reply into {content, tool_calls} with valid tool arguments.
+
+    The schema travels on the command line, so a large tool set falls back to a compact
+    schema that only checks tool names; the parameters are still in the system prompt.
+    """
     variants = [
         {
             "type": "object",
@@ -122,7 +129,14 @@ def tools_schema(tools, required):
         }
         for t in tools
     ]
-    calls = {"type": "array", "items": {"anyOf": variants}}
+    items = {"anyOf": variants}
+    if len(json.dumps(items)) > MAX_SCHEMA_CHARS:
+        items = {
+            "type": "object",
+            "properties": {"name": {"enum": [t["function"]["name"] for t in tools]}, "arguments": {"type": "object"}},
+            "required": ["name", "arguments"],
+        }
+    calls = {"type": "array", "items": items}
     if required:
         calls["minItems"] = 1
     return {
@@ -183,6 +197,8 @@ def run_claude(config, system, prompt, model, effort, schema):
             )
         except subprocess.TimeoutExpired:
             raise BridgeError(504, f"Claude Code did not answer within {config.timeout} s.", "timeout")
+        except OSError as e:
+            raise BridgeError(502, f"Could not start Claude Code: {e}", "upstream_error")
     try:
         result = json.loads(proc.stdout)
     except json.JSONDecodeError:
